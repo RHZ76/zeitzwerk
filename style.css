@@ -22,122 +22,152 @@
 
 
 /* =========================================================
-   Zeit(z)Werk 1.1.2c
-   iPhone/mobile detail correction on the ACTUAL app selectors
+   Zeit(z)Werk 1.1.2d
+   iPhone detail pass – layout only, app logic unchanged
    ========================================================= */
 
-@media (max-width: 700px) {
+.calcLabel,.calcValue{display:block}
+.calcValue{margin-top:4px}
 
-  /* ----- Eingabemaske ----- */
-  .form {
-    width: 100%;
-    max-width: 100%;
-    overflow: hidden;
+/* The fixes below target iPhone/mobile only. */
+@media (max-width:560px){
+
+  /* Consistent inner width for the white entry card */
+  .form{
+    overflow:hidden;
   }
 
-  .form label {
-    min-width: 0;
-    max-width: 100%;
+  .form label{
+    min-width:0;
+    width:100%;
   }
 
-  .twocol {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    gap: 12px;
-    width: 100%;
-    max-width: 100%;
+  /* Exact 2-column grid, with a real gap between both fields */
+  .twocol{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+    gap:12px;
+    width:100%;
+    min-width:0;
   }
 
-  .twocol > label {
-    min-width: 0;
-    width: 100%;
-    max-width: 100%;
+  .twocol > label{
+    width:100%;
+    min-width:0;
+    max-width:100%;
   }
 
-  .form input {
-    display: block;
-    width: 100% !important;
-    min-width: 0 !important;
-    max-width: 100% !important;
-    height: 50px;
-    box-sizing: border-box;
-    padding: 10px 12px;
-    border-radius: 11px;
+  /* iOS Safari gives date/time/month controls an intrinsic size.
+     Neutralizing the native appearance prevents overflow/clipping
+     while preserving the native picker behavior on tap. */
+  .form input,
+  .monthpick input{
+    display:block;
+    box-sizing:border-box !important;
+    width:100% !important;
+    min-width:0 !important;
+    max-width:100% !important;
+    height:48px !important;
+    min-height:48px !important;
+    padding:0 12px !important;
+    line-height:48px !important;
+    border:1px solid #d8ddd9 !important;
+    border-radius:12px !important;
+    background:#fff !important;
+    color:var(--text) !important;
   }
 
-  /* Safari/iOS date and time fields otherwise keep an intrinsic minimum width */
   .form input[type="date"],
   .form input[type="time"],
-  .monthpick input[type="month"] {
-    width: 100% !important;
-    min-width: 0 !important;
-    max-width: 100% !important;
-    box-sizing: border-box !important;
+  .monthpick input[type="month"]{
+    -webkit-appearance:none !important;
+    appearance:none !important;
+    inline-size:100% !important;
+    max-inline-size:100% !important;
+    min-inline-size:0 !important;
+    overflow:hidden !important;
   }
 
   .form input::-webkit-date-and-time-value,
-  .monthpick input::-webkit-date-and-time-value {
-    min-width: 0;
-    text-align: left;
+  .monthpick input::-webkit-date-and-time-value{
+    min-width:0 !important;
+    max-width:100% !important;
+    line-height:48px !important;
+    text-align:left !important;
   }
 
-  /* ----- Abrechnung / Zeitraum ----- */
-  .monthpick {
-    width: 100%;
-    max-width: 100%;
-    min-width: 0;
-    overflow: hidden;
+  /* Datum / Notiz: full width with equal rounded corners on all sides */
+  #date,#note{
+    width:100% !important;
+    max-width:100% !important;
+    border-radius:12px !important;
   }
 
-  .monthpick input,
-  #billingMonth {
-    display: block;
-    width: 100% !important;
-    min-width: 0 !important;
-    max-width: 100% !important;
-    height: 48px !important;
-    min-height: 48px !important;
-    margin-top: 5px;
-    padding: 8px 12px !important;
-    border-radius: 11px !important;
-    box-sizing: border-box !important;
-    font-size: 16px !important;
-    line-height: normal !important;
+  /* Note field uses the same visual height as the other controls */
+  #note{
+    height:48px !important;
+    min-height:48px !important;
+    line-height:normal !important;
   }
 
-  /* ----- Drei-Punkte-Menü ----- */
+  /* Billing month selector: same content width as all cards below it.
+     Explicit inset width avoids Safari cutting off the right radius. */
+  .monthpick{
+    display:block;
+    width:100%;
+    min-width:0;
+    max-width:100%;
+    overflow:visible;
+  }
+
+  #billingMonth{
+    display:block !important;
+    width:calc(100% - 2px) !important;
+    max-width:calc(100% - 2px) !important;
+    margin:5px 1px 0 !important;
+    height:48px !important;
+    min-height:48px !important;
+    border-radius:12px !important;
+    overflow:hidden !important;
+  }
+
+  /* Menu: all items use exactly the same Zeit(z)Werk green */
   .sheetbox button,
-  .sheetbox .filelabel {
-    color: var(--green) !important;
-    -webkit-text-fill-color: var(--green) !important;
-    font-weight: 700 !important;
-    text-decoration: none !important;
+  .sheetbox .filelabel{
+    -webkit-appearance:none !important;
+    appearance:none !important;
+    color:var(--green) !important;
+    -webkit-text-fill-color:var(--green) !important;
+    font-weight:700 !important;
+    text-decoration:none !important;
+    border:0 !important;
   }
 
-  .sheetbox button:active,
   .sheetbox button:focus,
-  .sheetbox .filelabel:active,
-  .sheetbox .filelabel:focus {
-    color: var(--green) !important;
-    -webkit-text-fill-color: var(--green) !important;
+  .sheetbox button:active,
+  .sheetbox .filelabel:focus,
+  .sheetbox .filelabel:active{
+    color:var(--green) !important;
+    -webkit-text-fill-color:var(--green) !important;
   }
 
-  /* iOS button tint neutralisieren without changing layout */
-  .sheetbox button {
-    -webkit-appearance: none;
-    appearance: none;
+  /* Summary: fixed two-line structure. Value always stays together. */
+  .calc{
+    line-height:1.3;
   }
-
-  /* ----- Zusammenfassung ----- */
-  #calc {
-    white-space: normal;
-    line-height: 1.35;
+  .calcLabel{
+    display:block;
+  }
+  .calcValue{
+    display:block;
+    margin-top:4px;
+    white-space:nowrap;
   }
 }
 
-/* Sehr schmale Geräte: lieber untereinander als gequetscht */
-@media (max-width: 360px) {
-  .twocol {
-    grid-template-columns: 1fr;
+/* If an iPhone is exceptionally narrow, stack pairs rather than overlap. */
+@media (max-width:340px){
+  .twocol{
+    grid-template-columns:1fr;
   }
 }
