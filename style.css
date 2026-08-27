@@ -171,3 +171,15 @@
     grid-template-columns:1fr;
   }
 }
+
+.viewPowered{
+  text-align:center;
+  margin:16px 0 4px;
+  color:var(--muted);
+  font-size:12px;
+  line-height:1.4;
+}
+.viewPowered strong{
+  color:var(--green);
+  font-weight:800;
+}
