@@ -173,6 +173,8 @@
 }
 
 .viewPowered{
+  width:100%;
+  box-sizing:border-box;
   text-align:center;
   margin:16px 0 4px;
   color:var(--muted);
