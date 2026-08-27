@@ -19,3 +19,28 @@
  #printSheet .printSum td{font-weight:700;background:#f7f8f7}
  #printSheet .printFooter{margin-top:16px;text-align:right;font-size:10px;color:#7a827e}
 }
+
+
+.pdfSheet{
+  position:fixed;left:-10000px;top:0;
+  width:1120px;background:#fff;color:#17211d;
+  padding:30px;font-family:Arial,sans-serif;
+}
+.pdfSheet .pdfTop{
+  display:flex;justify-content:space-between;align-items:flex-end;
+  border-bottom:2px solid #17211d;padding-bottom:12px;margin-bottom:16px;
+}
+.pdfSheet h1{margin:0;font-size:26px}
+.pdfSheet p{margin:4px 0 0;color:#59635e}
+.pdfSheet .pdfPeriod{font-weight:700;font-size:14px}
+.pdfSheet table{width:100%;border-collapse:collapse;font-size:11px}
+.pdfSheet th,.pdfSheet td{
+  border:1px solid #cfd5d1;padding:8px 6px;text-align:left;vertical-align:top;
+}
+.pdfSheet th{background:#f1f4f2}
+.pdfSheet td:nth-child(4),.pdfSheet td:nth-child(5),
+.pdfSheet td:nth-child(6),.pdfSheet td:nth-child(7){white-space:nowrap}
+.pdfSheet .pdfSum td{font-weight:700;background:#f7f8f7}
+.pdfSheet .pdfFooter{
+  margin-top:18px;text-align:right;font-size:10px;color:#7a827e;
+}
