@@ -32,7 +32,7 @@ function billingRows(list){return list.length?list.sort((a,b)=>b.date.localeComp
 function renderBilling(){if(!$('#billingMonth'))return;let m=$('#billingMonth').value,list=entries.filter(e=>!m||e.date.startsWith(m)),open=list.filter(e=>e.status==='open'),billed=list.filter(e=>e.status==='billed'),paid=list.filter(e=>e.status==='paid'),to=totals(open),tb=totals(billed),tp=totals(paid);$('#billOpen').textContent=euro(to.p);$('#billBilled').textContent=euro(tb.p);$('#billPaid').textContent=euro(tp.p);$('#billOpenMeta').textContent=minsToText(to.m)+' Std.';$('#billBilledMeta').textContent=minsToText(tb.m)+' Std.';$('#billPaidMeta').textContent=minsToText(tp.m)+' Std.';$('#billingDetails').innerHTML=`<details open><summary>Offen (${open.length})</summary>${billingRows(open)}</details><details><summary>Abgerechnet (${billed.length})</summary>${billingRows(billed)}</details><details><summary>Bezahlt (${paid.length})</summary>${billingRows(paid)}</details>`}
 $('#menuBtn').onclick=()=>$('#menu').classList.remove('hidden');$('#closeMenu').onclick=()=>$('#menu').classList.add('hidden');$('#about').onclick=()=>{$('#menu').classList.add('hidden');$('#aboutBox').classList.remove('hidden')};$('#closeAbout').onclick=()=>$('#aboutBox').classList.add('hidden');
 function download(name,text,type){let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
-$('#backup').onclick=()=>download(`zeitzwerk-backup-${today()}.json`,JSON.stringify({app:'Zeit(z)Werk',version:'1.1.4',exported:new Date().toISOString(),entries},null,2),'application/json');
+$('#backup').onclick=()=>download(`zeitzwerk-backup-${today()}.json`,JSON.stringify({app:'Zeit(z)Werk',version:'1.1.2',exported:new Date().toISOString(),entries},null,2),'application/json');
 $('#restore').onchange=async ev=>{let f=ev.target.files[0];if(!f)return;try{let j=JSON.parse(await f.text());if(!Array.isArray(j.entries))throw 0;if(confirm(`${j.entries.length} Einträge aus der Sicherung laden? Die aktuellen Daten werden ersetzt.`)){entries=j.entries;normalizeEntries();save();alert('Datensicherung wurde wiederhergestellt.')}}catch{alert('Diese Datei ist keine gültige Zeit(z)Werk-Sicherung.')}ev.target.value=''};
 $('#csv').onclick=()=>{let h=['Datum','Beginn','Ende','Pause','Netto_Std','Stundenlohn_EUR','Betrag_EUR','Status','Abgerechnet_am','Bezahlt_am','Notiz'];let lines=[h,...[...entries].sort((a,b)=>a.date.localeCompare(b.date)).map(e=>[e.date,e.start,e.end,minsToText(e.pause),(e.minutes/60).toFixed(2).replace('.',','),e.rate.toFixed(2).replace('.',','),e.amount.toFixed(2).replace('.',','),statusLabel(e.status),e.billedAt?e.billedAt.slice(0,10):'',e.paidAt?e.paidAt.slice(0,10):'',e.note||''])];download('zeitzwerk-export.csv','\ufeff'+lines.map(r=>r.map(v=>'"'+String(v).replaceAll('"','""')+'"').join(';')).join('\n'),'text/csv;charset=utf-8')};
 function printFiltered(openOnly){
@@ -50,65 +50,6 @@ function printFiltered(openOnly){
  window.print();
  setTimeout(()=>{if(document.body.contains(sheet))cleanup()},1500);
 }
-
-function buildPdfSheet(openOnly){
- let month=$('#billingMonth').value||today().slice(0,7),
-     list=entries.filter(e=>e.date.startsWith(month)&&(!openOnly||e.status==='open'))
-                 .sort((a,b)=>a.date.localeCompare(b.date)||a.start.localeCompare(b.start));
- if(!list.length){alert('Für diese Auswahl gibt es keine Einträge.');return null}
- let t=totals(list),
-     monthLabel=new Date(month+'-01T12:00:00').toLocaleDateString('de-DE',{month:'long',year:'numeric'}),
-     rows=list.map(e=>`<tr>
-       <td>${shortDate(e.date)}</td><td>${e.start}</td><td>${e.end}</td>
-       <td>${minsToText(e.pause)}</td><td>${minsToText(e.minutes)}</td>
-       <td>${euro(e.rate)}</td><td>${euro(e.amount)}</td>
-       <td>${statusLabel(e.status)}</td><td>${esc(e.note||'')}</td>
-     </tr>`).join('');
- let wrap=document.createElement('div');
- wrap.className='pdfSheet';
- wrap.innerHTML=`<div class="pdfTop">
-   <div><h1>Zeit(z)Werk</h1><p>Arbeitszeitnachweis</p></div>
-   <div class="pdfPeriod">${openOnly?'Offene Einträge · ':''}${monthLabel}</div>
- </div>
- <table>
-   <thead><tr><th>Datum</th><th>Beginn</th><th>Ende</th><th>Pause</th><th>Arbeitszeit</th><th>Stundenlohn</th><th>Betrag</th><th>Status</th><th>Notiz</th></tr></thead>
-   <tbody>${rows}
-   <tr class="pdfSum"><td colspan="4">Gesamt</td><td>${minsToText(t.m)}</td><td></td><td>${euro(t.p)}</td><td colspan="2"></td></tr>
-   </tbody>
- </table>
- <div class="pdfFooter">powered by viacruz · viacruz.com</div>`;
- return {wrap,month};
-}
-
-async function savePdf(openOnly){
- if(typeof html2pdf!=='function'){
-   alert('Die PDF-Funktion konnte nicht geladen werden. Bitte prüfe kurz die Internetverbindung und versuche es erneut.');
-   return;
- }
- let built=buildPdfSheet(openOnly); if(!built)return;
- document.body.appendChild(built.wrap);
- await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
- let filename=`zeitwerk-${openOnly?'offen-':'arbeitszeitnachweis-'}${built.month}.pdf`;
- try{
-   await html2pdf().set({
-     margin:[8,8,8,8],
-     filename,
-     image:{type:'jpeg',quality:0.98},
-     html2canvas:{scale:2,useCORS:true,backgroundColor:'#ffffff'},
-     jsPDF:{unit:'mm',format:'a4',orientation:'landscape'},
-     pagebreak:{mode:['css','legacy']}
-   }).from(built.wrap).save();
- }catch(err){
-   console.error(err);
-   alert('Die PDF konnte nicht erstellt werden. Bitte versuche es erneut.');
- }finally{
-   built.wrap.remove();
- }
-}
-
-$('#pdfOpen').onclick=()=>savePdf(true);
-$('#pdfAll').onclick=()=>savePdf(false);
-$('#printAll').onclick=()=>printFiltered(false);
-
+$('#printOpen').onclick=()=>printFiltered(true);$('#printAll').onclick=()=>printFiltered(false);
 $('#date').value=today();$('#monthFilter').value=today().slice(0,7);$('#billingMonth').value=today().slice(0,7);setTimeout(()=>{$('#splash').classList.add('hidden');$('#app').classList.remove('hidden');render()},1200);
 if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js');
