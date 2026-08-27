@@ -21,11 +21,7 @@
 }
 
 
-.pdfSheet{
-  position:fixed;left:-10000px;top:0;
-  width:1120px;background:#fff;color:#17211d;
-  padding:30px;font-family:Arial,sans-serif;
-}
+.pdfSheet{position:fixed;left:0;top:0;z-index:999999;width:1120px;max-width:none;background:#fff;color:#17211d;padding:30px;font-family:Arial,sans-serif;box-sizing:border-box;pointer-events:none;}
 .pdfSheet .pdfTop{
   display:flex;justify-content:space-between;align-items:flex-end;
   border-bottom:2px solid #17211d;padding-bottom:12px;margin-bottom:16px;
