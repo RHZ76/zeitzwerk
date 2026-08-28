@@ -171,3 +171,12 @@
     grid-template-columns:1fr;
   }
 }
+
+
+/* =========================================================
+   Zeit(z)Werk 1.1.2g TEST – lokale PIN-App-Sperre
+   ========================================================= */
+.lockscreen{position:fixed;inset:0;z-index:100;background:#f7f7f4;display:flex;align-items:center;justify-content:center;padding:24px;min-height:100dvh}
+.lockcard{width:min(390px,100%);background:#fff;border:1px solid var(--line);border-radius:24px;padding:28px 22px;text-align:center;box-shadow:0 8px 30px #0000000d}
+.lockbrand{font-size:24px;font-weight:800;color:var(--green);margin-bottom:16px}.lockicon{font-size:38px}.lockcard h2{margin:10px 0 6px}.lockcard p{color:var(--muted);margin:0 0 18px;line-height:1.4}.lockcard input{display:block;width:100%;height:52px;border:1px solid #d8ddd9;border-radius:13px;text-align:center;font-size:24px;letter-spacing:.18em;margin:0 0 10px;background:#fff;color:var(--text)}.lockcard .primary{margin-top:4px}.lockcard small{display:block;color:#8a918e;margin-top:20px}.lockerror{min-height:20px;color:#a22;font-size:13px;margin-bottom:4px}
+.locksettings h2{margin:2px 0 10px}.settingstatus{color:var(--muted);line-height:1.4}.settinglabel{display:block;text-align:left;color:var(--muted);font-size:13px;margin:12px 0}.settinglabel select{margin-top:6px}.settingshint{font-size:13px;color:var(--muted);line-height:1.45;margin:14px 4px}.dangertext{color:#a22!important;-webkit-text-fill-color:#a22!important}

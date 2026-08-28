@@ -6,6 +6,20 @@ const minsToText=m=>`${String(Math.floor((m||0)/60)).padStart(2,'0')}:${String((
 const dateDE=s=>new Date(s+'T12:00:00').toLocaleDateString('de-DE',{weekday:'short',day:'2-digit',month:'2-digit',year:'numeric'});
 const shortDate=s=>s?new Date(s+'T12:00:00').toLocaleDateString('de-DE'):'—';
 const today=()=>new Date().toISOString().slice(0,10);
+const LOCK_KEY='zeitzwerk_device_lock_v1';
+let lockState={enabled:false,pinHash:'',delay:1};
+let lockTimer=null, hiddenAt=null;
+try{lockState={...lockState,...JSON.parse(localStorage.getItem(LOCK_KEY)||'{}')}}catch{}
+function saveLockState(){localStorage.setItem(LOCK_KEY,JSON.stringify(lockState))}
+async function hashPin(pin){const data=new TextEncoder().encode('zeitzwerk:'+pin);const hash=await crypto.subtle.digest('SHA-256',data);return [...new Uint8Array(hash)].map(b=>b.toString(16).padStart(2,'0')).join('')}
+function validPin(pin){return /^\d{4,6}$/.test(pin)}
+function closeSheets(){['menu','aboutBox','lockBox'].forEach(id=>{let el=$('#'+id);if(el)el.classList.add('hidden')})}
+function showApp(){clearTimeout(lockTimer);$('#lockScreen').classList.add('hidden');$('#lockScreen').setAttribute('aria-hidden','true');$('#app').classList.remove('hidden');$('#unlockPin').value='';$('#unlockError').textContent=''}
+function lockApp(){if(!lockState.enabled)return;clearTimeout(lockTimer);closeSheets();$('#app').classList.add('hidden');$('#lockScreen').classList.remove('hidden');$('#lockScreen').setAttribute('aria-hidden','false');$('#unlockPin').value='';$('#unlockError').textContent='';setTimeout(()=>$('#unlockPin').focus(),100)}
+async function checkPin(pin){return lockState.enabled&&await hashPin(pin)===lockState.pinHash}
+function refreshLockSettings(){let on=!!lockState.enabled;$('#lockStatus').textContent=on?'Die App-Sperre ist auf diesem Gerät eingeschaltet.':'Die App-Sperre ist ausgeschaltet.';$('#enableLock').classList.toggle('hidden',on);['changePin','lockDelayWrap','lockNow','disableLock'].forEach(id=>$('#'+id).classList.toggle('hidden',!on));$('#lockDelay').value=String(lockState.delay??1)}
+async function promptNewPin(){let p1=prompt('Neue PIN festlegen (4 bis 6 Ziffern):','');if(p1===null)return null;if(!validPin(p1)){alert('Bitte eine PIN mit 4 bis 6 Ziffern eingeben.');return null}let p2=prompt('PIN zur Bestätigung erneut eingeben:','');if(p2===null)return null;if(p1!==p2){alert('Die beiden PIN-Eingaben stimmen nicht überein.');return null}return p1}
+async function requireCurrentPin(){let p=prompt('Aktuelle PIN eingeben:','');if(p===null)return false;if(!await checkPin(p)){alert('Die PIN ist nicht richtig.');return false}return true}
 function pauseToMins(v){if(typeof v==='number')return v;if(!v)return 0;let [h,m]=String(v).split(':').map(Number);return (h||0)*60+(m||0)}
 function calcMins(start,end,pause){if(!start||!end)return 0;let [sh,sm]=start.split(':').map(Number),[eh,em]=end.split(':').map(Number);let a=sh*60+sm,b=eh*60+em;if(b<a)b+=1440;return Math.max(0,b-a-pauseToMins(pause))}
 function normalizeEntries(){entries=entries.map(e=>({...e,pause:pauseToMins(e.pause),billedAt:e.billedAt||null,paidAt:e.paidAt||null}))}
@@ -31,8 +45,18 @@ $('#filter').onchange=renderList;$('#monthFilter').onchange=renderList;$('#billi
 function billingRows(list){return list.length?list.sort((a,b)=>b.date.localeCompare(a.date)||a.start.localeCompare(b.start)).map(e=>`<div class="billrow"><div><b>${shortDate(e.date)} · ${e.start}–${e.end}</b><div class="meta">${minsToText(e.minutes)} Std.${e.note?' · '+esc(e.note):''}</div></div><strong>${euro(e.amount)}</strong></div>`).join(''):'<div class="hint compact">Keine Einträge.</div>'}
 function renderBilling(){if(!$('#billingMonth'))return;let m=$('#billingMonth').value,list=entries.filter(e=>!m||e.date.startsWith(m)),open=list.filter(e=>e.status==='open'),billed=list.filter(e=>e.status==='billed'),paid=list.filter(e=>e.status==='paid'),to=totals(open),tb=totals(billed),tp=totals(paid);$('#billOpen').textContent=euro(to.p);$('#billBilled').textContent=euro(tb.p);$('#billPaid').textContent=euro(tp.p);$('#billOpenMeta').textContent=minsToText(to.m)+' Std.';$('#billBilledMeta').textContent=minsToText(tb.m)+' Std.';$('#billPaidMeta').textContent=minsToText(tp.m)+' Std.';$('#billingDetails').innerHTML=`<details open><summary>Offen (${open.length})</summary>${billingRows(open)}</details><details><summary>Abgerechnet (${billed.length})</summary>${billingRows(billed)}</details><details><summary>Bezahlt (${paid.length})</summary>${billingRows(paid)}</details>`}
 $('#menuBtn').onclick=()=>$('#menu').classList.remove('hidden');$('#closeMenu').onclick=()=>$('#menu').classList.add('hidden');$('#about').onclick=()=>{$('#menu').classList.add('hidden');$('#aboutBox').classList.remove('hidden')};$('#closeAbout').onclick=()=>$('#aboutBox').classList.add('hidden');
+$('#lockSettings').onclick=()=>{$('#menu').classList.add('hidden');refreshLockSettings();$('#lockBox').classList.remove('hidden')};
+$('#closeLockBox').onclick=()=>$('#lockBox').classList.add('hidden');
+$('#enableLock').onclick=async()=>{let pin=await promptNewPin();if(!pin)return;lockState.enabled=true;lockState.pinHash=await hashPin(pin);lockState.delay=1;saveLockState();refreshLockSettings();alert('App-Sperre ist auf diesem Gerät eingeschaltet.');};
+$('#changePin').onclick=async()=>{if(!await requireCurrentPin())return;let pin=await promptNewPin();if(!pin)return;lockState.pinHash=await hashPin(pin);saveLockState();alert('Die PIN wurde geändert.');};
+$('#disableLock').onclick=async()=>{if(!await requireCurrentPin())return;if(!confirm('App-Sperre auf diesem Gerät wirklich ausschalten?'))return;lockState={enabled:false,pinHash:'',delay:1};saveLockState();refreshLockSettings();alert('App-Sperre ist ausgeschaltet.');};
+$('#lockDelay').onchange=()=>{lockState.delay=Number($('#lockDelay').value);saveLockState()};
+$('#lockNow').onclick=()=>{if(!lockState.enabled)return;$('#lockBox').classList.add('hidden');lockApp()};
+$('#unlockForm').onsubmit=async e=>{e.preventDefault();let pin=$('#unlockPin').value.trim();if(await checkPin(pin)){showApp()}else{$('#unlockError').textContent='PIN nicht richtig.';$('#unlockPin').select()}};
+$('#unlockPin').addEventListener('input',()=>{$('#unlockPin').value=$('#unlockPin').value.replace(/\D/g,'').slice(0,6);$('#unlockError').textContent=''});
+document.addEventListener('visibilitychange',()=>{if(!lockState.enabled)return;if(document.hidden){hiddenAt=Date.now();clearTimeout(lockTimer);let delay=(Number(lockState.delay)||0)*60000;if(delay===0)lockApp();else lockTimer=setTimeout(lockApp,delay)}else{clearTimeout(lockTimer);if(hiddenAt!==null){let delay=(Number(lockState.delay)||0)*60000;if(Date.now()-hiddenAt>=delay)lockApp();hiddenAt=null}}});
 function download(name,text,type){let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
-$('#backup').onclick=()=>download(`zeitzwerk-backup-${today()}.json`,JSON.stringify({app:'Zeit(z)Werk',version:'1.1.2f',exported:new Date().toISOString(),entries},null,2),'application/json');
+$('#backup').onclick=()=>download(`zeitzwerk-backup-${today()}.json`,JSON.stringify({app:'Zeit(z)Werk',version:'1.1.2g TEST',exported:new Date().toISOString(),entries},null,2),'application/json');
 $('#restore').onchange=async ev=>{let f=ev.target.files[0];if(!f)return;try{let j=JSON.parse(await f.text());if(!Array.isArray(j.entries))throw 0;if(confirm(`${j.entries.length} Einträge aus der Sicherung laden? Die aktuellen Daten werden ersetzt.`)){entries=j.entries;normalizeEntries();save();alert('Datensicherung wurde wiederhergestellt.')}}catch{alert('Diese Datei ist keine gültige Zeit(z)Werk-Sicherung.')}ev.target.value=''};
 $('#csv').onclick=()=>{let h=['Datum','Beginn','Ende','Pause','Netto_Std','Stundenlohn_EUR','Betrag_EUR','Status','Abgerechnet_am','Bezahlt_am','Notiz'];let lines=[h,...[...entries].sort((a,b)=>a.date.localeCompare(b.date)).map(e=>[e.date,e.start,e.end,minsToText(e.pause),(e.minutes/60).toFixed(2).replace('.',','),e.rate.toFixed(2).replace('.',','),e.amount.toFixed(2).replace('.',','),statusLabel(e.status),e.billedAt?e.billedAt.slice(0,10):'',e.paidAt?e.paidAt.slice(0,10):'',e.note||''])];download('zeitzwerk-export.csv','\ufeff'+lines.map(r=>r.map(v=>'"'+String(v).replaceAll('"','""')+'"').join(';')).join('\n'),'text/csv;charset=utf-8')};
 function printFiltered(openOnly){
@@ -52,5 +76,5 @@ function printFiltered(openOnly){
  requestAnimationFrame(()=>requestAnimationFrame(()=>setTimeout(()=>window.print(),300)));
 }
 $('#printOpen').onclick=()=>printFiltered(true);$('#printAll').onclick=()=>printFiltered(false);
-$('#date').value=today();$('#monthFilter').value=today().slice(0,7);$('#billingMonth').value=today().slice(0,7);setTimeout(()=>{$('#splash').classList.add('hidden');$('#app').classList.remove('hidden');render()},1200);
+$('#date').value=today();$('#monthFilter').value=today().slice(0,7);$('#billingMonth').value=today().slice(0,7);setTimeout(()=>{$('#splash').classList.add('hidden');render();if(lockState.enabled)lockApp();else showApp()},1200);
 if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js');
