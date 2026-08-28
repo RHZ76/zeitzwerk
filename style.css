@@ -176,7 +176,7 @@
 .pinScreen{position:fixed;inset:0;z-index:99;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:24px}.pinCard{width:min(380px,100%);background:#fff;border:1px solid var(--line);border-radius:22px;padding:26px;text-align:center}.pinCard input{width:100%;padding:14px;border:1px solid #d8ddd9;border-radius:11px;text-align:center;font-size:22px;letter-spacing:.15em;margin:12px 0}.pinCard small{display:block;color:var(--muted);margin-top:18px}.pinError{color:#a22;min-height:20px}.sheetbox select{width:100%;margin:8px 0 12px}
 
 
-/* 1.1.2h TEST: Letzte Eintraege standardmaessig eingeklappt */
+/* 1.1.2i TEST: Letzte Eintraege standardmaessig eingeklappt */
 .recentFold{margin-top:20px}
 .recentFold>summary{list-style:none;cursor:pointer;font-size:1.35rem;font-weight:700;padding:10px 2px;display:flex;align-items:center;justify-content:space-between;-webkit-tap-highlight-color:transparent}
 .recentFold>summary::-webkit-details-marker{display:none}
