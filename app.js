@@ -12,22 +12,54 @@ function normalizeEntries(){entries=entries.map(e=>({...e,pause:pauseToMins(e.pa
 normalizeEntries();
 function save(){localStorage.setItem(KEY,JSON.stringify(entries));render()}
 function totals(list){return list.reduce((a,e)=>{a.m+=(+e.minutes||0);a.p+=(+e.amount||0);a.n++;return a},{m:0,p:0,n:0})}
-function nav(id){$$('.view').forEach(v=>v.classList.toggle('active',v.id===id));$$('nav button').forEach(b=>b.classList.toggle('active',b.dataset.nav===id));if(id==='calendar')renderList();if(id==='billing')renderBilling()}
-function render(){let now=new Date(),ym=now.toISOString().slice(0,7),month=entries.filter(e=>e.date.startsWith(ym)),open=entries.filter(e=>e.status==='open'),paid=entries.filter(e=>e.status==='paid');let a=totals(open),m=totals(month),p=totals(paid);$('#openPay').textContent=euro(a.p);$('#openMeta').textContent=`${new Set(open.map(e=>e.date)).size} Tage · ${minsToText(a.m)} Std.`;$('#monthPay').textContent=euro(m.p);$('#monthHours').textContent=minsToText(m.m)+' Std. gesamt';$('#paidPay').textContent=euro(p.p);$('#paidMeta').textContent=p.n+' Einträge';renderRecent();renderList();renderBilling()}
+function nav(id){$$('.view').forEach(v=>v.classList.toggle('active',v.id===id));$$('nav button').forEach(b=>b.classList.toggle('active',b.dataset.nav===id));if(id==='calendar')renderCalendar();if(id==='billing')renderBilling()}
+function render(){let now=new Date(),ym=now.toISOString().slice(0,7),month=entries.filter(e=>e.date.startsWith(ym)),open=entries.filter(e=>e.status==='open'),paid=entries.filter(e=>e.status==='paid');let a=totals(open),m=totals(month),p=totals(paid);$('#openPay').textContent=euro(a.p);$('#openMeta').textContent=`${new Set(open.map(e=>e.date)).size} Tage · ${minsToText(a.m)} Std.`;$('#monthPay').textContent=euro(m.p);$('#monthHours').textContent=minsToText(m.m)+' Std. gesamt';$('#paidPay').textContent=euro(p.p);$('#paidMeta').textContent=p.n+' Einträge';renderRecent();renderCalendar();renderBilling()}
 function renderRecent(){let x=[...entries].sort((a,b)=>b.date.localeCompare(a.date)||b.created-a.created).slice(0,4);$('#recent').innerHTML=x.length?x.map(e=>rowHTML(e,false)).join(''):'<div class="hint">Noch keine Arbeitszeiten gespeichert.</div>';bindRows($('#recent'))}
 function esc(s=''){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]))}
 function statusLabel(s){return s==='open'?'Offen':s==='billed'?'Abgerechnet':'Bezahlt'}
 function rowHTML(e,inDay=true,index=0){let extra=e.status==='paid'&&e.paidAt?`<div class="meta paydate">Bezahlt am ${shortDate(e.paidAt.slice(0,10))}</div>`:e.status==='billed'&&e.billedAt?`<div class="meta paydate">Abgerechnet am ${shortDate(e.billedAt.slice(0,10))}</div>`:'';return `<div class="row" data-id="${e.id}"><div class="rowtop"><div><b>${inDay?'Einsatz '+(index+1):dateDE(e.date)}</b><div class="meta">${e.start}–${e.end} · Pause ${minsToText(e.pause)} · ${minsToText(e.minutes)} Std.</div>${e.note?`<div class="meta">${esc(e.note)}</div>`:''}${extra}</div><div class="money">${euro(e.amount)}</div></div><span class="status ${e.status}">${statusLabel(e.status)}</span><div class="rowactions"><button data-action="next">${e.status==='open'?'Als abgerechnet':e.status==='billed'?'Als bezahlt':'Wieder öffnen'}</button><button data-action="edit">Bearbeiten</button><button data-action="delete" class="danger">Löschen</button></div></div>`}
 function renderList(){if(!$('#entries'))return;let f=$('#filter').value,m=$('#monthFilter').value;let list=[...entries].filter(e=>(f==='all'||e.status===f)&&(!m||e.date.startsWith(m))).sort((a,b)=>b.date.localeCompare(a.date)||a.start.localeCompare(b.start));let groups={};list.forEach(e=>(groups[e.date]??=[]).push(e));$('#entries').innerHTML=Object.entries(groups).map(([d,arr])=>{let t=totals(arr),allPaid=arr.every(e=>e.status==='paid'),allBilled=arr.every(e=>e.status==='billed'),nextStatus=allPaid?'open':allBilled?'paid':'billed',buttonText=nextStatus==='billed'?'Tag abrechnen':nextStatus==='paid'?'Tag als bezahlt':'Tag wieder öffnen';return `<div class="day" data-date="${d}"><div class="dayhead"><span>${dateDE(d)}</span><span class="daytotal">${minsToText(t.m)} Std. · ${euro(t.p)}</span></div><div class="dayactions"><button data-day-status="${nextStatus}">${buttonText}</button></div>${arr.map((e,i)=>rowHTML(e,true,i)).join('')}</div>`}).join('')||'<div class="hint">Für diese Auswahl gibt es keine Einträge.</div>';bindRows($('#entries'));bindDayActions()}
+
+let calMonth=today().slice(0,7), calSelected=null;
+function calMonthLabel(ym){let [y,m]=ym.split('-').map(Number);return new Date(y,m-1,1).toLocaleDateString('de-DE',{month:'long',year:'numeric'})}
+function shiftCalMonth(delta){let [y,m]=calMonth.split('-').map(Number),d=new Date(y,m-1+delta,1);calMonth=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;calSelected=null;renderCalendar()}
+function renderCalendar(){
+ if(!$('#calGrid'))return;
+ $('#calTitle').textContent=calMonthLabel(calMonth);
+ let [y,m]=calMonth.split('-').map(Number), first=new Date(y,m-1,1), days=new Date(y,m,0).getDate(), offset=(first.getDay()+6)%7;
+ let byDate={}; entries.filter(e=>e.date.startsWith(calMonth)).forEach(e=>(byDate[e.date]??=[]).push(e));
+ let cells=[];
+ for(let i=0;i<offset;i++)cells.push(`<div class="calCell blank" aria-hidden="true"></div>`);
+ for(let day=1;day<=days;day++){
+   let ds=`${calMonth}-${String(day).padStart(2,'0')}`, arr=byDate[ds]||[], statuses=[...new Set(arr.map(e=>e.status))];
+   let dots=['open','billed','paid'].filter(s=>statuses.includes(s)).map(s=>`<i class="calDot ${s}"></i>`).join('');
+   let cls=['calCell']; if(arr.length)cls.push('hasEntries'); if(ds===today())cls.push('today'); if(ds===calSelected)cls.push('selected');
+   cells.push(`<button class="${cls.join(' ')}" data-cal-date="${ds}" type="button"><span class="calNum">${day}</span><span class="calDots">${dots}</span></button>`);
+ }
+ while(cells.length%7)cells.push(`<div class="calCell blank" aria-hidden="true"></div>`);
+ $('#calGrid').innerHTML=cells.join('');
+ $$('#calGrid [data-cal-date]').forEach(b=>b.onclick=()=>{calSelected=b.dataset.calDate;renderCalendar();renderCalendarDay(calSelected)});
+ if(calSelected&&calSelected.startsWith(calMonth))renderCalendarDay(calSelected);else $('#calDayDetail').innerHTML='';
+}
+function renderCalendarDay(date){
+ let root=$('#calDayDetail'); if(!root)return;
+ let list=entries.filter(e=>e.date===date).sort((a,b)=>a.start.localeCompare(b.start));
+ if(!list.length){root.innerHTML=`<div class="calEmpty hint">${dateDE(date)} · Keine Arbeitszeit eingetragen.</div>`;return}
+ let t=totals(list);
+ root.innerHTML=`<div class="calDetailHead"><div><small>ARBEITSTAG</small><h3>${dateDE(date)}</h3></div><div class="calDetailTotal"><b>${euro(t.p)}</b><span>${minsToText(t.m)} Std.</span></div></div>${list.map((e,i)=>rowHTML(e,true,i)).join('')}`;
+ bindRows(root);
+}
+
 function askPaidDate(){let d=prompt('Bezahlt am (JJJJ-MM-TT):',today());if(d===null)return null;if(!/^\d{4}-\d{2}-\d{2}$/.test(d))return alert('Bitte Datum im Format JJJJ-MM-TT eingeben.'),null;return d}
 function applyStatus(e,status,paidDate=null){e.status=status;if(status==='billed'){e.billedAt=e.billedAt||new Date().toISOString();e.paidAt=null}else if(status==='paid'){e.paidAt=(paidDate||today())+'T12:00:00';e.billedAt=e.billedAt||new Date().toISOString()}else{e.billedAt=null;e.paidAt=null}}
 function bindRows(root){root.querySelectorAll('[data-action]').forEach(b=>b.onclick=()=>{let id=b.closest('.row').dataset.id,e=entries.find(x=>x.id===id);if(!e)return;if(b.dataset.action==='delete'){if(confirm('Diesen Arbeitseintrag wirklich löschen?')){entries=entries.filter(x=>x.id!==id);save()}}else if(b.dataset.action==='next'){let target=e.status==='open'?'billed':e.status==='billed'?'paid':'open',pd=target==='paid'?askPaidDate():null;if(target==='paid'&&!pd)return;applyStatus(e,target,pd);save()}else{loadEdit(e)}})}
 function bindDayActions(){$$('#entries [data-day-status]').forEach(b=>b.onclick=()=>{let day=b.closest('.day').dataset.date,target=b.dataset.dayStatus,dayEntries=entries.filter(e=>e.date===day),pd=target==='paid'?askPaidDate():null;if(target==='paid'&&!pd)return;let question=target==='billed'?'Alle Einsätze dieses Tages als abgerechnet markieren?':target==='paid'?'Alle Einsätze dieses Tages als bezahlt markieren?':'Alle Einsätze dieses Tages wieder öffnen?';if(!confirm(question))return;dayEntries.forEach(e=>applyStatus(e,target,pd));save()})}
 function loadEdit(e){nav('entry');$('#date').value=e.date;$('#start').value=e.start;$('#end').value=e.end;$('#pause').value=minsToText(e.pause);$('#rate').value=e.rate;$('#note').value=e.note||'';$('#entryForm').dataset.edit=e.id;updateCalc();window.scrollTo(0,0)}
 function updateCalc(){let m=calcMins($('#start').value,$('#end').value,$('#pause').value),amt=m/60*(+$('#rate').value||0);$('#calc .calcValue').textContent=`${minsToText(m)} Std. · ${euro(amt)}`}
-$$('[data-nav]').forEach(b=>b.onclick=()=>nav(b.dataset.nav));['start','end','pause','rate'].forEach(id=>$('#'+id).addEventListener('input',updateCalc));
+$$('[data-nav]').forEach(b=>b.onclick=()=>nav(b.dataset.nav));
+$('#calPrev').onclick=()=>shiftCalMonth(-1);$('#calNext').onclick=()=>shiftCalMonth(1);['start','end','pause','rate'].forEach(id=>$('#'+id).addEventListener('input',updateCalc));
 $('#entryForm').onsubmit=e=>{e.preventDefault();let pause=pauseToMins($('#pause').value),m=calcMins($('#start').value,$('#end').value,pause);if(m<=0)return alert('Bitte Arbeitszeit und Pause prüfen.');let obj={id:$('#entryForm').dataset.edit||crypto.randomUUID(),date:$('#date').value,start:$('#start').value,end:$('#end').value,pause,rate:+$('#rate').value||0,note:$('#note').value.trim(),minutes:m,amount:Math.round(m/60*(+$('#rate').value||0)*100)/100,status:'open',created:Date.now(),billedAt:null,paidAt:null};let old=entries.find(x=>x.id===obj.id);if(old){obj.status=old.status;obj.created=old.created;obj.billedAt=old.billedAt;obj.paidAt=old.paidAt;entries=entries.map(x=>x.id===obj.id?obj:x)}else entries.push(obj);delete $('#entryForm').dataset.edit;let rate=obj.rate;$('#entryForm').reset();$('#date').value=today();$('#rate').value=rate;$('#pause').value='00:00';save();nav('overview')}
-$('#filter').onchange=renderList;$('#monthFilter').onchange=renderList;$('#billingMonth').onchange=renderBilling;
+$('#billingMonth').onchange=renderBilling;
 function billingRows(list){return list.length?list.sort((a,b)=>b.date.localeCompare(a.date)||a.start.localeCompare(b.start)).map(e=>`<div class="billrow"><div><b>${shortDate(e.date)} · ${e.start}–${e.end}</b><div class="meta">${minsToText(e.minutes)} Std.${e.note?' · '+esc(e.note):''}</div></div><strong>${euro(e.amount)}</strong></div>`).join(''):'<div class="hint compact">Keine Einträge.</div>'}
 function renderBilling(){if(!$('#billingMonth'))return;let m=$('#billingMonth').value,list=entries.filter(e=>!m||e.date.startsWith(m)),open=list.filter(e=>e.status==='open'),billed=list.filter(e=>e.status==='billed'),paid=list.filter(e=>e.status==='paid'),to=totals(open),tb=totals(billed),tp=totals(paid);$('#billOpen').textContent=euro(to.p);$('#billBilled').textContent=euro(tb.p);$('#billPaid').textContent=euro(tp.p);$('#billOpenMeta').textContent=minsToText(to.m)+' Std.';$('#billBilledMeta').textContent=minsToText(tb.m)+' Std.';$('#billPaidMeta').textContent=minsToText(tp.m)+' Std.';$('#billingDetails').innerHTML=`<details open><summary>Offen (${open.length})</summary>${billingRows(open)}</details><details><summary>Abgerechnet (${billed.length})</summary>${billingRows(billed)}</details><details><summary>Bezahlt (${paid.length})</summary>${billingRows(paid)}</details>`}
 $('#menuBtn').onclick=()=>$('#menu').classList.remove('hidden');$('#closeMenu').onclick=()=>$('#menu').classList.add('hidden');$('#about').onclick=()=>{$('#menu').classList.add('hidden');$('#aboutBox').classList.remove('hidden')};$('#closeAbout').onclick=()=>$('#aboutBox').classList.add('hidden');
@@ -75,5 +107,5 @@ function printFiltered(openOnly){
  requestAnimationFrame(()=>requestAnimationFrame(()=>setTimeout(()=>window.print(),300)));
 }
 $('#printOpen').onclick=()=>printFiltered(true);$('#printAll').onclick=()=>printFiltered(false);
-$('#date').value=today();$('#monthFilter').value=today().slice(0,7);$('#billingMonth').value=today().slice(0,7);setTimeout(()=>{$('#splash').classList.add('hidden');$('#app').classList.remove('hidden');render()},1200);
+$('#date').value=today();$('#billingMonth').value=today().slice(0,7);setTimeout(()=>{$('#splash').classList.add('hidden');$('#app').classList.remove('hidden');render()},1200);
 if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js');
