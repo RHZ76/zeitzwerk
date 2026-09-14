@@ -63,10 +63,13 @@ function bindQuick(id,fn){let el=$(id);if(!el)return;el.onclick=fn;el.onkeydown=
 bindQuick('#quickOpen',()=>quickBilling('open'));bindQuick('#quickMonth',quickCalendar);bindQuick('#quickPaid',()=>quickBilling('paid'));
 $('#calPrev').onclick=()=>shiftCalMonth(-1);$('#calNext').onclick=()=>shiftCalMonth(1);['start','end','pause','rate'].forEach(id=>$('#'+id).addEventListener('input',updateCalc));
 $('#entryForm').onsubmit=e=>{e.preventDefault();let pause=pauseToMins($('#pause').value),m=calcMins($('#start').value,$('#end').value,pause);if(m<=0)return alert('Bitte Arbeitszeit und Pause prüfen.');let obj={id:$('#entryForm').dataset.edit||crypto.randomUUID(),date:$('#date').value,start:$('#start').value,end:$('#end').value,pause,rate:+$('#rate').value||0,note:$('#note').value.trim(),minutes:m,amount:Math.round(m/60*(+$('#rate').value||0)*100)/100,status:'open',created:Date.now(),billedAt:null,paidAt:null};let old=entries.find(x=>x.id===obj.id);if(old){obj.status=old.status;obj.created=old.created;obj.billedAt=old.billedAt;obj.paidAt=old.paidAt;entries=entries.map(x=>x.id===obj.id?obj:x)}else entries.push(obj);delete $('#entryForm').dataset.edit;let rate=obj.rate;$('#entryForm').reset();$('#date').value=today();$('#rate').value=rate;$('#pause').value='00:00';save();nav('overview')}
-$('#billingMonth').onchange=renderBilling;
-function billingRows(list){return list.length?list.sort((a,b)=>b.date.localeCompare(a.date)||a.start.localeCompare(b.start)).map(e=>`<div class="billrow billManage" data-id="${e.id}"><div class="billMain"><div><b>${shortDate(e.date)} · ${e.start}–${e.end}</b><div class="meta">${minsToText(e.minutes)} Std.${e.note?' · '+esc(e.note):''}</div></div><strong>${euro(e.amount)}</strong></div><div class="billStatusActions"><button data-bill-status="open" class="${e.status==='open'?'active':''}">Offen</button><button data-bill-status="billed" class="${e.status==='billed'?'active':''}">Abgerechnet</button><button data-bill-status="paid" class="${e.status==='paid'?'active':''}">Bezahlt</button></div></div>`).join(''):'<div class="hint compact">Keine Einträge.</div>'}
+const billingSelection=new Set();
+$('#billingMonth').onchange=()=>{billingSelection.clear();renderBilling()};
+function billingRows(list){return list.length?list.sort((a,b)=>b.date.localeCompare(a.date)||a.start.localeCompare(b.start)).map(e=>`<div class="billrow billManage" data-id="${e.id}"><label class="billSelect" title="Für PDF/Druck auswählen"><input type="checkbox" data-bill-select="${e.id}" ${billingSelection.has(e.id)?'checked':''}><span>Auswählen</span></label><div class="billMain"><div><b>${shortDate(e.date)} · ${e.start}–${e.end}</b><div class="meta">${minsToText(e.minutes)} Std.${e.note?' · '+esc(e.note):''}</div></div><strong>${euro(e.amount)}</strong></div><div class="billStatusActions"><button data-bill-status="open" class="${e.status==='open'?'active':''}">Offen</button><button data-bill-status="billed" class="${e.status==='billed'?'active':''}">Abgerechnet</button><button data-bill-status="paid" class="${e.status==='paid'?'active':''}">Bezahlt</button></div></div>`).join(''):'<div class="hint compact">Keine Einträge.</div>'}
+function updatePrintSelectionButton(){let b=$('#printSelected');if(!b)return;let n=billingSelection.size;b.textContent=n?`Auswahl drucken / PDF (${n})`:'Auswahl drucken / PDF';b.disabled=n===0}
+function bindBillingSelection(){$$('#billingDetails [data-bill-select]').forEach(c=>c.onchange=()=>{if(c.checked)billingSelection.add(c.dataset.billSelect);else billingSelection.delete(c.dataset.billSelect);updatePrintSelectionButton()})}
 function bindBillingStatus(){$$('#billingDetails [data-bill-status]').forEach(b=>b.onclick=()=>{let box=b.closest('[data-id]'),e=entries.find(x=>x.id===box?.dataset.id),target=b.dataset.billStatus;if(!e||e.status===target)return;let pd=target==='paid'?askPaidDate():null;if(target==='paid'&&!pd)return;applyStatus(e,target,pd);save()})}
-function renderBilling(focus=''){if(!$('#billingMonth'))return;let m=$('#billingMonth').value,list=entries.filter(e=>!m||e.date.startsWith(m)),open=list.filter(e=>e.status==='open'),billed=list.filter(e=>e.status==='billed'),paid=list.filter(e=>e.status==='paid'),to=totals(open),tb=totals(billed),tp=totals(paid);$('#billOpen').textContent=euro(to.p);$('#billBilled').textContent=euro(tb.p);$('#billPaid').textContent=euro(tp.p);$('#billOpenMeta').textContent=minsToText(to.m)+' Std.';$('#billBilledMeta').textContent=minsToText(tb.m)+' Std.';$('#billPaidMeta').textContent=minsToText(tp.m)+' Std.';$('#billingDetails').innerHTML=`<details ${focus==='open'?'open':''}><summary>Offen (${open.length})</summary>${billingRows(open)}</details><details ${focus==='billed'?'open':''}><summary>Abgerechnet (${billed.length})</summary>${billingRows(billed)}</details><details ${focus==='paid'?'open':''}><summary>Bezahlt (${paid.length})</summary>${billingRows(paid)}</details>`;bindBillingStatus()}
+function renderBilling(focus=''){if(!$('#billingMonth'))return;let m=$('#billingMonth').value,list=entries.filter(e=>!m||e.date.startsWith(m)),open=list.filter(e=>e.status==='open'),billed=list.filter(e=>e.status==='billed'),paid=list.filter(e=>e.status==='paid'),to=totals(open),tb=totals(billed),tp=totals(paid);$('#billOpen').textContent=euro(to.p);$('#billBilled').textContent=euro(tb.p);$('#billPaid').textContent=euro(tp.p);$('#billOpenMeta').textContent=minsToText(to.m)+' Std.';$('#billBilledMeta').textContent=minsToText(tb.m)+' Std.';$('#billPaidMeta').textContent=minsToText(tp.m)+' Std.';$('#billingDetails').innerHTML=`<details ${focus==='open'?'open':''}><summary>Offen (${open.length})</summary>${billingRows(open)}</details><details ${focus==='billed'?'open':''}><summary>Abgerechnet (${billed.length})</summary>${billingRows(billed)}</details><details ${focus==='paid'?'open':''}><summary>Bezahlt (${paid.length})</summary>${billingRows(paid)}</details>`;bindBillingStatus();bindBillingSelection();updatePrintSelectionButton()}
 $('#menuBtn').onclick=()=>$('#menu').classList.remove('hidden');$('#closeMenu').onclick=()=>$('#menu').classList.add('hidden');$('#about').onclick=()=>{$('#menu').classList.add('hidden');$('#aboutBox').classList.remove('hidden')};$('#closeAbout').onclick=()=>$('#aboutBox').classList.add('hidden');
 // PIN-Sperre ist absichtlich gekapselt: Ein Fehler hier darf den App-Start nie blockieren.
 (function(){try{
@@ -92,25 +95,37 @@ $('#menuBtn').onclick=()=>$('#menu').classList.remove('hidden');$('#closeMenu').
  setTimeout(()=>{if(st.enabled)lock()},1350);
 }catch(e){console.error('PIN-Sperre deaktiviert:',e)}})();
 function download(name,text,type){let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
-$('#backup').onclick=()=>download(`zeitzwerk-backup-${today()}.json`,JSON.stringify({app:'Zeit(z)Werk',version:'1.1.2l STATUS TEST',exported:new Date().toISOString(),entries},null,2),'application/json');
+$('#backup').onclick=()=>download(`zeitzwerk-backup-${today()}.json`,JSON.stringify({app:'Zeit(z)Werk',version:'1.1.2m AUSWAHL DRUCK TEST',exported:new Date().toISOString(),entries},null,2),'application/json');
 $('#restore').onchange=async ev=>{let f=ev.target.files[0];if(!f)return;try{let j=JSON.parse(await f.text());if(!Array.isArray(j.entries))throw 0;if(confirm(`${j.entries.length} Einträge aus der Sicherung laden? Die aktuellen Daten werden ersetzt.`)){entries=j.entries;normalizeEntries();save();alert('Datensicherung wurde wiederhergestellt.')}}catch{alert('Diese Datei ist keine gültige Zeit(z)Werk-Sicherung.')}ev.target.value=''};
 $('#csv').onclick=()=>{let h=['Datum','Beginn','Ende','Pause','Netto_Std','Stundenlohn_EUR','Betrag_EUR','Status','Abgerechnet_am','Bezahlt_am','Notiz'];let lines=[h,...[...entries].sort((a,b)=>a.date.localeCompare(b.date)).map(e=>[e.date,e.start,e.end,minsToText(e.pause),(e.minutes/60).toFixed(2).replace('.',','),e.rate.toFixed(2).replace('.',','),e.amount.toFixed(2).replace('.',','),statusLabel(e.status),e.billedAt?e.billedAt.slice(0,10):'',e.paidAt?e.paidAt.slice(0,10):'',e.note||''])];download('zeitzwerk-export.csv','\ufeff'+lines.map(r=>r.map(v=>'"'+String(v).replaceAll('"','""')+'"').join(';')).join('\n'),'text/csv;charset=utf-8')};
-function printFiltered(openOnly){
- let month=$('#billingMonth').value||today().slice(0,7), list=entries.filter(e=>e.date.startsWith(month)&&(!openOnly||e.status==='open')).sort((a,b)=>a.date.localeCompare(b.date)||a.start.localeCompare(b.start));
- if(!list.length)return alert('Für diese Auswahl gibt es keine Einträge.');
- let t=totals(list), monthLabel=new Date(month+'-01T12:00:00').toLocaleDateString('de-DE',{month:'long',year:'numeric'});
+function printEntries(list,label){
+ list=[...list].sort((a,b)=>a.date.localeCompare(b.date)||a.start.localeCompare(b.start));
+ if(!list.length)return alert('Bitte zuerst mindestens einen Eintrag auswählen.');
+ let t=totals(list);
  let rows=list.map(e=>`<tr><td>${shortDate(e.date)}</td><td>${e.start}</td><td>${e.end}</td><td>${minsToText(e.pause)}</td><td>${minsToText(e.minutes)}</td><td>${euro(e.rate)}</td><td>${euro(e.amount)}</td><td>${statusLabel(e.status)}</td><td>${esc(e.note||'')}</td></tr>`).join('');
  let old=$('#printSheet'); if(old)old.remove();
  let sheet=document.createElement('section'); sheet.id='printSheet';
- sheet.innerHTML=`<div class="printTop"><div><h1>Zeit(z)Werk</h1><p>Arbeitszeitnachweis</p></div><div class="printPeriod">${openOnly?'Offene Einträge · ':''}${monthLabel}</div></div><table><thead><tr><th>Datum</th><th>Beginn</th><th>Ende</th><th>Pause</th><th>Arbeitszeit</th><th>Stundenlohn</th><th>Betrag</th><th>Status</th><th>Notiz</th></tr></thead><tbody>${rows}<tr class="printSum"><td colspan="4">Gesamt</td><td>${minsToText(t.m)}</td><td></td><td>${euro(t.p)}</td><td colspan="2"></td></tr></tbody></table><div class="printFooter">powered by viacruz · viacruz.com</div>`;
+ sheet.innerHTML=`<div class="printTop"><div><h1>Zeit(z)Werk</h1><p>Arbeitszeitnachweis</p></div><div class="printPeriod">${esc(label)}</div></div><table><thead><tr><th>Datum</th><th>Beginn</th><th>Ende</th><th>Pause</th><th>Arbeitszeit</th><th>Stundenlohn</th><th>Betrag</th><th>Status</th><th>Notiz</th></tr></thead><tbody>${rows}<tr class="printSum"><td colspan="4">Gesamt</td><td>${minsToText(t.m)}</td><td></td><td>${euro(t.p)}</td><td colspan="2"></td></tr></tbody></table><div class="printFooter">powered by viacruz · viacruz.com</div>`;
  document.body.appendChild(sheet);
  let oldTitle=document.title; document.title='Zeit(z)Werk – Arbeitszeitnachweis';
  const restoreTitle=()=>{document.title=oldTitle;window.removeEventListener('afterprint',restoreTitle)};
  window.addEventListener('afterprint',restoreTitle);
  // iOS/Safari braucht Zeit, den dynamisch erzeugten Druckbereich zu layouten.
- // Das Druckblatt bleibt danach unsichtbar/offscreen im DOM und wird erst beim nächsten Druck ersetzt.
  requestAnimationFrame(()=>requestAnimationFrame(()=>setTimeout(()=>window.print(),300)));
 }
-$('#printOpen').onclick=()=>printFiltered(true);$('#printAll').onclick=()=>printFiltered(false);
+function printFiltered(openOnly){
+ let month=$('#billingMonth').value||today().slice(0,7), list=entries.filter(e=>e.date.startsWith(month)&&(!openOnly||e.status==='open'));
+ if(!list.length)return alert('Für diese Auswahl gibt es keine Einträge.');
+ let monthLabel=new Date(month+'-01T12:00:00').toLocaleDateString('de-DE',{month:'long',year:'numeric'});
+ printEntries(list,`${openOnly?'Offene Einträge · ':''}${monthLabel}`);
+}
+function printSelected(){
+ let list=entries.filter(e=>billingSelection.has(e.id));
+ if(!list.length)return alert('Bitte zuerst mindestens einen Eintrag auswählen.');
+ printEntries(list,`Ausgewählte Einträge · ${list.length} ${list.length===1?'Eintrag':'Einträge'}`);
+}
+$('#printOpen').onclick=()=>printFiltered(true);
+$('#printSelected').onclick=printSelected;
+$('#printAll').onclick=()=>printFiltered(false);
 $('#date').value=today();$('#billingMonth').value=today().slice(0,7);setTimeout(()=>{$('#splash').classList.add('hidden');$('#app').classList.remove('hidden');render()},1200);
 if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js');
