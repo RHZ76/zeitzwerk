@@ -197,3 +197,5 @@
 .billManage{display:block}.billMain{display:flex;justify-content:space-between;gap:10px}.billStatusActions{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:10px}.billStatusActions button{border:1px solid var(--line);background:#fff;border-radius:9px;padding:8px 6px;font-size:12px;font-weight:700;color:var(--muted)}.billStatusActions button.active{border-color:var(--green);background:var(--light);color:var(--green)}
 
 .billSelect{display:inline-flex;align-items:center;gap:7px;margin:0 0 10px;color:var(--green);font-size:12px;font-weight:750;cursor:pointer}.billSelect input{width:20px;height:20px;margin:0;accent-color:var(--green)}.secondary:disabled{opacity:.45;cursor:default}
+
+.billDelete{width:100%;border:1px solid var(--line);background:#fff;border-radius:9px;padding:8px 10px;margin-top:8px;font-size:12px;font-weight:700}.secondary:disabled{opacity:.45;cursor:default}
