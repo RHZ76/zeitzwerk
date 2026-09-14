@@ -193,3 +193,5 @@
 .quickCard{cursor:pointer;touch-action:manipulation}
 .quickCard:active{transform:scale(.99)}
 .quickCard:focus-visible{outline:2px solid currentColor;outline-offset:2px}
+
+.billManage{display:block}.billMain{display:flex;justify-content:space-between;gap:10px}.billStatusActions{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:10px}.billStatusActions button{border:1px solid var(--line);background:#fff;border-radius:9px;padding:8px 6px;font-size:12px;font-weight:700;color:var(--muted)}.billStatusActions button.active{border-color:var(--green);background:var(--light);color:var(--green)}
